@@ -17,6 +17,7 @@ const navItems = [
   { path: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/dashboard/alerts', label: 'Alerts', icon: Bell, badge: 3 },
   { path: '/dashboard/cases', label: 'Case Management', icon: FolderOpen },
+  { path: '/dashboard/threat-scanner', label: 'Threat Scanner', icon: Shield },
   { path: '/dashboard/reports', label: 'Reports', icon: FileBarChart },
   { path: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];

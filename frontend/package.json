@@ -13,6 +13,7 @@
     "vite": "^8.0.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.1",
     "@tailwindcss/postcss": "^4.2.1",
     "@vitejs/plugin-react": "^6.0.0",
     "autoprefixer": "^10.4.27",

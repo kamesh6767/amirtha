@@ -59,3 +59,14 @@ class AuditLog(Base):
     action = Column(String)
     target = Column(String)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+
+class Document(Base):
+    __tablename__ = "documents"
+    id = Column(String, primary_key=True, index=True)
+    filename = Column(String)
+    file_url = Column(String) # Supabase Storage URL
+    uploaded_by = Column(String)
+    status = Column(String, default="Scanning") # Scanning, Clean, Threat Detected, Failed
+    threat_score = Column(Float, default=0.0)
+    threat_details = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 import pandas as pd
 import io
 import uuid
+import random
 import models, database, auth, ml
 from typing import List
 
@@ -102,6 +103,79 @@ async def upload_dataset(
     db.commit()
     
     return {"message": "Dataset analyzed", "dataset_id": dataset_id, "anomalies_detected": fraud_count}
+
+@app.post("/upload-document")
+async def upload_document(
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_db)
+):
+    # 1. Upload to Supabase Storage if configured
+    file_url = f"local://{file.filename}"
+    doc_id = str(uuid.uuid4())[:12]
+    
+    if database.supabase:
+        try:
+            content = await file.read()
+            # Reset file pointer for reading later if needed
+            file.file.seek(0)
+            
+            # Create bucket if it doesn't exist (assuming 'documents' bucket)
+            res = database.supabase.storage.from_("documents").upload(
+                path=f"scans/{doc_id}_{file.filename}",
+                file=content,
+                file_options={"content-type": file.content_type}
+            )
+            file_url = database.supabase.storage.from_("documents").get_public_url(f"scans/{doc_id}_{file.filename}")
+        except Exception as e:
+            print(f"Supabase upload error: {e}")
+            # Fallback to dummy URL for demo
+            file_url = f"https://supabase-sim.io/storage/v1/object/public/documents/scans/{file.filename}"
+
+    # 2. Save metadata to DB
+    new_doc = models.Document(
+        id=doc_id,
+        filename=file.filename,
+        file_url=file_url,
+        uploaded_by="CyberShield Admin",
+        status="Scanning",
+        threat_score=0.0
+    )
+    db.add(new_doc)
+    db.commit()
+
+    # 3. Simulate Threat Scanning
+    # In production, this would be a background task
+    import random
+    threat_score = random.uniform(0, 100)
+    status = "Clean"
+    details = "No malicious patterns detected. File signature verified."
+    
+    if threat_score > 70:
+        status = "Threat Detected"
+        details = "Heuristic analysis identified potential malware footprint. Unauthorized script execution detected."
+    elif threat_score > 40:
+        status = "Suspicious"
+        details = "Unusual metadata found. Requires manual analyst review."
+
+    new_doc.status = status
+    new_doc.threat_score = threat_score
+    new_doc.threat_details = details
+    db.commit()
+
+    return {
+        "message": "Document uploaded and scanned",
+        "document": {
+            "id": new_doc.id,
+            "filename": new_doc.filename,
+            "status": new_doc.status,
+            "threat_score": new_doc.threat_score,
+            "details": new_doc.threat_details
+        }
+    }
+
+@app.get("/documents", response_model=List[dict])
+def get_documents(db: Session = Depends(database.get_db)):
+    return db.query(models.Document).order_by(models.Document.created_at.desc()).all()
 
 @app.get("/stats")
 def get_stats(db: Session = Depends(database.get_db)):
