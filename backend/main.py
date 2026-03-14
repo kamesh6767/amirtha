@@ -8,23 +8,31 @@ import random
 import models, database, auth, ml
 from typing import List
 
+from typing import List
+from fastapi.responses import JSONResponse
+
 app = FastAPI(title="CyberShield API")
 
-# Setup database
-models.Base.metadata.create_all(bind=database.engine)
-
+# Setup CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # In production, specify your Vercel domains
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Setup database
+models.Base.metadata.create_all(bind=database.engine)
+
+# Use an API Router to handle the /api prefix from Vercel
+from fastapi import APIRouter
+router = APIRouter(prefix="/api")
+
 engine = ml.FraudDetectionEngine()
 
-@app.get("/")
+@router.get("/")
 def read_root():
-    return {"status": "CyberShield API Active", "version": "2.4.1"}
+    return {"status": "CyberShield API Active", "version": "2.4.1", "environment": "Production"}
 
 @app.post("/login")
 def login(email: str, role: str):
@@ -32,11 +40,11 @@ def login(email: str, role: str):
     access_token = auth.create_access_token(data={"sub": email, "role": role})
     return {"access_token": access_token, "token_type": "bearer", "user": {"email": email, "role": role}}
 
-@app.get("/beneficiaries", response_model=List[dict])
+@router.get("/beneficiaries", response_model=List[dict])
 def get_beneficiaries(db: Session = Depends(database.get_db)):
     return db.query(models.Beneficiary).all()
 
-@app.post("/upload-dataset")
+@router.post("/upload-dataset")
 async def upload_dataset(
     file: UploadFile = File(...), 
     db: Session = Depends(database.get_db)
@@ -192,6 +200,8 @@ def get_stats(db: Session = Depends(database.get_db)):
 @app.get("/alerts", response_model=List[dict])
 def get_alerts(db: Session = Depends(database.get_db)):
     return db.query(models.Alert).order_by(models.Alert.created_at.desc()).all()
+
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
